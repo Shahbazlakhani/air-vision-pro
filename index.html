@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Vision Pro</title>
+    <!-- Gen Z Fonts: Space Grotesk (Headings), Inter (Body) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg: #080808;
+            /* Deep Black */
+            --card: #141414;
+            /* Off-Black Card */
+            --card-border: #222;
+            /* Subtle Border */
+            --accent: #ccff00;
+            /* Acid Green - The "Gen Z" Pop */
+            --text-main: #ffffff;
+            --text-dim: #888888;
+            --radius: 32px;
+            /* Heavy rounded corners */
+            --font-head: 'Space Grotesk', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px;
+            /* Subtle noise texture for "raw" feel */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        /* --- Bento Grid Layout --- */
+        .wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .brand {
+            font-family: var(--font-head);
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand i {
+            color: var(--accent);
+        }
+
+        .search-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .search-pill {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 999px;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .search-pill:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(204, 255, 0, 0.15);
+        }
+
+        .search-pill input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            width: 100%;
+            margin-left: 10px;
+            outline: none;
+        }
+
+        .search-btn {
+            background: var(--accent);
+            color: black;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+            margin-left: 10px;
+        }
+
+        .search-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Grid Setup */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, minmax(320px, auto));
+            gap: 20px;
+        }
+
+        /* --- Bento Cards --- */
+        .b-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .b-card:hover {
+            transform: translateY(-4px);
+            border-color: #333;
+        }
+
+        .b-title {
+            font-family: var(--font-head);
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- Specific Cells --- */
+
+        /* 1. AQI (Top Left) - Spans 1 col */
+        .box-aqi {
+            grid-column: span 1;
+            /* display: flex; align-items: center; justify-content: center; */
+        }
+
+        /* Circular Progress - Simplified */
+        .aqi-circle-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .aqi-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: conic-gradient(var(--color) var(--deg), #222 0deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .aqi-circle::after {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            background: var(--card);
+            border-radius: 50%;
+        }
+
+        .aqi-content {
+            z-index: 2;
+            text-align: center;
+            position: relative;
+        }
+
+        .aqi-big-num {
+            font-family: var(--font-head);
+            font-size: 5rem;
+            font-weight: 700;
+            line-height: 1;
+            color: white;
+        }
+
+        .aqi-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--color);
+            margin-top: 5px;
+        }
+
+        /* 2. Map (Top Middle) - Spans 2 cols */
+        .box-map {
+            grid-column: span 2;
+            padding: 0;
+            /* Full bleed */
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--radius);
+            /* Removed filters for better visibility */
+        }
+
+        /* 3. Weather (Top Right) - Spans 1 col */
+        .box-weather {
+            grid-column: span 1;
+            background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+        }
+
+        .weather-display {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .w-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .temp-huge {
+            font-family: var(--font-head);
+            font-size: 5rem;
+            font-weight: 700;
+            line-height: 0.9;
+        }
+
+        .w-icon-large {
+            font-size: 3.5rem;
+            color: var(--accent);
+        }
+
+        .w-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .w-stat-item {
+            background: #222;
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .w-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .w-val {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+
+        /* 4. Chart (Bottom Left) - Spans 2 cols */
+        .box-chart {
+            grid-column: span 2;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+        }
+
+        /* 5. Pollutants (Bottom Right) - Spans 2 cols */
+        .box-pollutants {
+            grid-column: span 2;
+        }
+
+        .pollutant-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            height: 100%;
+        }
+
+        .p-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .p-val {
+            font-family: var(--font-head);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .p-lbl {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Health Tips Overlap or New Row? Let's make it a wide bottom strip */
+        .box-tips {
+            grid-column: 1 / -1;
+            /* Full Width */
+            min-height: auto;
+            flex-direction: row;
+            align-items: center;
+            gap: 24px;
+            background: #ccff00;
+            color: black;
+            border: none;
+        }
+
+        .box-tips .b-title {
+            color: black;
+            font-weight: 700;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        #health-tips-content {
+            display: flex;
+            gap: 24px;
+            overflow-x: auto;
+            flex: 1;
+        }
+
+        .tip-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .bento-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .box-chart,
+            .box-pollutants {
+                grid-column: span 2;
+            }
+
+            .box-aqi,
+            .box-weather {
+                grid-column: span 1;
+            }
+
+            .box-map {
+                grid-column: span 2;
+                order: -1;
+            }
+
+            /* Map on top */
+        }
+
+        @media (max-width: 768px) {
+            .bento-grid {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .header-flex {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .search-container {
+                max-width: 100%;
+            }
+
+            .box-tips {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
+            }
+
+            #health-tips-content {
+                flex-direction: column;
+                gap: 10px;
+                overflow: visible;
+            }
+
+            .aqi-big-num {
+                font-size: 4rem;
+            }
+
+            .temp-huge {
+                font-size: 4rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <!-- Header -->
+        <header class="header-flex">
+            <div class="brand">
+                <i class="fas fa-wind"></i> AIR VISION PRO
+            </div>
+
+            <div class="location-display" id="location-display"
+                style="font-family: var(--font-head); color: var(--text-dim);">
+                Detecting...
+            </div>
+
+            <div class="search-container">
+                <div class="search-pill">
+                    <i class="fas fa-search" style="color: var(--text-dim)"></i>
+                    <input type="text" id="city-search" placeholder="Search city..."
+                        onkeypress="if(event.key === 'Enter') searchAndFetchAQI()">
+                    <button class="search-btn" onclick="searchAndFetchAQI()">GO</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Bento Grid -->
+        <main class="bento-grid">
+
+            <!-- 1. AQI Box -->
+            <div class="b-card box-aqi">
+                <div class="b-title">Air Quality Index <i class="fas fa-lungs"></i></div>
+                <div class="aqi-circle-container">
+                    <!-- Dynamic Style for Ring -->
+                    <div class="aqi-circle" id="aqi-ring" style="--deg: 0deg; --color: var(--accent);">
+                        <div class="aqi-content">
+                            <div class="aqi-big-num" id="aqi-value">--</div>
+                            <div class="aqi-label" id="aqi-status">Loading</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Map Box -->
+            <div class="b-card box-map">
+                <div id="map"></div>
+            </div>
+
+            <!-- 3. Weather Box -->
+            <div class="b-card box-weather">
+                <div class="b-title">Current Weather</div>
+                <div class="weather-display">
+                    <div class="w-main">
+                        <div class="temp-huge" id="w-temp">--°</div>
+                        <div class="w-icon-large" id="w-icon"><i class="fas fa-cloud"></i></div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--text-dim); margin-top: -10px; margin-bottom: 10px;">
+                        Feels like <span id="w-feels-like" style="color: white; font-weight: bold;">--°</span> • <span
+                            id="w-desc">--</span>
+                    </div>
+
+                    <div class="w-stats">
+                        <div class="w-stat-item">
+                            <div class="w-label">Humidity</div>
+                            <div class="w-val" id="w-humidity">--%</div>
+                        </div>
+                        <div class="w-stat-item">
+                            <div class="w-label">Wind</div>
+                            <div class="w-val" id="w-wind">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Chart Box -->
+            <div class="b-card box-chart">
+                <div class="b-title">24h Trend <i class="fas fa-chart-line"></i></div>
+                <div class="chart-wrapper">
+                    <canvas id="aqiChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 5. Pollutants Box -->
+            <div class="b-card box-pollutants">
+                <div class="b-title">Detailed Analysis <i class="fas fa-flask"></i></div>
+                <div class="pollutant-grid">
+                    <div class="p-item">
+                        <div class="p-val" id="pm25">-</div>
+                        <div class="p-lbl">PM 2.5</div>
+                    </div>
+                    <div class="p-item">
+                        <div class="p-val" id="pm10">-</div>
+                        <div class="p-lbl">PM 10</div>
+                    </div>
+                    <div class="p-item">
+                        <div class="p-val" id="no2">-</div>
+                        <div class="p-lbl">NO₂</div>
+                    </div>
+                    <div class="p-item">
+                        <div class="p-val" id="so2">-</div>
+                        <div class="p-lbl">SO₂</div>
+                    </div>
+                    <div class="p-item">
+                        <div class="p-val" id="co">-</div>
+                        <div class="p-lbl">CO</div>
+                    </div>
+                    <div class="p-item">
+                        <div class="p-val" id="o3">-</div>
+                        <div class="p-lbl">Ozone</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Health Tips Strip -->
+            <div class="b-card box-tips">
+                <div id="health-tips-content">
+                    <!-- JS injects .tip-item here -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let map, marker, aqiChart;
+
+        // Initialize Map
+        function initMap() {
+            map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('aqiChart').getContext('2d');
+            aqiChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'AQI Forecast',
+                        data: [],
+                        borderColor: '#ccff00', /* Acid Green */
+                        backgroundColor: 'rgba(204, 255, 0, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#666' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#666', maxTicksLimit: 6 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ... (Map init stays same) ...
+
+        async function fetchWeather(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.current) {
+                    const temp = Math.round(data.current.temperature_2m);
+                    const hum = data.current.relative_humidity_2m;
+                    const wind = data.current.wind_speed_10m;
+                    const code = data.current.weather_code;
+
+                    document.getElementById('w-temp').textContent = `${temp}°`;
+                    document.getElementById('w-humidity').textContent = `${hum}%`;
+                    document.getElementById('w-wind').textContent = `${wind}`; // Removed km/h in HTML hardcoding, added here or handled in HTML label. 
+                    // Actually HTML has just the value. I should append unit.
+                    document.getElementById('w-wind').textContent = `${wind} km/h`;
+
+                    const { icon, desc } = getWeatherIcon(code);
+
+                    // Fixed: Use the proper ID from new HTML or adapt
+                    const iconEl = document.getElementById('w-icon-inner');
+                    if (iconEl) {
+                        iconEl.className = `fas ${icon} w-icon-large`; // Replace class directly
+                    } else {
+                        // Fallback if I used w-icon ID
+                        const container = document.getElementById('w-icon');
+                        if (container) container.innerHTML = `<i class="fas ${icon}" style="font-size:3rem; color: var(--accent)"></i>`;
+                    }
+
+                    document.getElementById('w-desc').textContent = desc;
+                }
+            } catch (error) {
+                console.error("Weather fetch failed:", error);
+            }
+        }
+
+        async function fetchWeather(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.current) {
+                    const temp = Math.round(data.current.temperature_2m);
+                    const feelsLike = Math.round(data.current.apparent_temperature);
+                    const hum = data.current.relative_humidity_2m;
+                    const wind = data.current.wind_speed_10m;
+                    const code = data.current.weather_code;
+
+                    document.getElementById('w-temp').textContent = `${temp}°`;
+                    document.getElementById('w-feels-like').textContent = `${feelsLike}°`;
+                    document.getElementById('w-humidity').textContent = `${hum}%`;
+                    document.getElementById('w-wind').textContent = `${wind} km/h`;
+
+                    const { icon, desc } = getWeatherIcon(code);
+                    document.getElementById('w-icon').innerHTML = `<i class="fas ${icon}"></i>`;
+                    document.getElementById('w-desc').textContent = desc;
+                }
+            } catch (error) {
+                console.error("Weather fetch failed:", error);
+            }
+        }
+
+        function getWeatherIcon(code) {
+            // WMO Weather interpretation codes
+            if (code === 0) return { icon: 'fa-sun', desc: 'Clear Sky' };
+            if (code >= 1 && code <= 3) return { icon: 'fa-cloud-sun', desc: 'Partly Cloudy' };
+            if (code >= 45 && code <= 48) return { icon: 'fa-smog', desc: 'Foggy' };
+            if (code >= 51 && code <= 55) return { icon: 'fa-cloud-rain', desc: 'Drizzle' };
+            if (code >= 61 && code <= 65) return { icon: 'fa-cloud-showers-heavy', desc: 'Rain' };
+            if (code >= 71 && code <= 77) return { icon: 'fa-snowflake', desc: 'Snow' };
+            if (code >= 80 && code <= 82) return { icon: 'fa-cloud-rain', desc: 'Rain Showers' };
+            if (code >= 95 && code <= 99) return { icon: 'fa-bolt', desc: 'Thunderstorm' };
+            return { icon: 'fa-cloud', desc: 'Overcast' };
+        }
+
+        window.onload = function () {
+            initMap();
+            initChart();
+            getCurrentLocationAQI();
+        };
+
+        async function getCurrentLocationAQI() {
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported.");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                await Promise.all([
+                    fetchAQI(lat, lon, "Current Location"),
+                    fetchWeather(lat, lon)
+                ]);
+            }, async () => {
+                await Promise.all([
+                    fetchAQI(40.7128, -74.0060, "New York, USA (Default)"),
+                    fetchWeather(40.7128, -74.0060)
+                ]);
+            });
+        }
+
+        async function searchCity(query) {
+            if (!query.trim()) return null;
+            const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+                const place = data.results[0];
+                return {
+                    lat: place.latitude,
+                    lon: place.longitude,
+                    name: `${place.name}, ${place.country}`
+                };
+            }
+            return null;
+        }
+
+        async function searchAndFetchAQI() {
+            const query = document.getElementById('city-search').value.trim();
+            if (!query) return;
+
+            const btn = document.querySelector('.search-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            const place = await searchCity(query);
+            if (place) {
+                await Promise.all([
+                    fetchAQI(place.lat, place.lon, place.name),
+                    fetchWeather(place.lat, place.lon)
+                ]);
+            } else {
+                alert("City not found!");
+            }
+            btn.innerHTML = '<i class="fas fa-search"></i>';
+        }
+
+        async function fetchAQI(lat, lon, locationName) {
+            // Update Map
+            map.setView([lat, lon], 10);
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lon]).addTo(map)
+                .bindPopup(locationName).openPopup();
+
+            document.getElementById('location-display').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${locationName}`;
+
+            const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi&timezone=auto`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.hourly) {
+                const now = new Date();
+                const currentHour = now.getHours();
+
+                // Current Data
+                const pm25 = data.hourly.pm2_5[currentHour];
+                const pm10 = data.hourly.pm10[currentHour];
+                const co = data.hourly.carbon_monoxide[currentHour];
+                const no2 = data.hourly.nitrogen_dioxide[currentHour];
+                const so2 = data.hourly.sulphur_dioxide[currentHour];
+                const o3 = data.hourly.ozone[currentHour];
+                const aqi = data.hourly.us_aqi[currentHour];
+
+                // Update DOM
+                document.getElementById('aqi-value').textContent = aqi || '-';
+                document.getElementById('pm25').textContent = pm25;
+                document.getElementById('pm10').textContent = pm10;
+                document.getElementById('co').textContent = co;
+                document.getElementById('no2').textContent = no2;
+                document.getElementById('so2').textContent = so2;
+                document.getElementById('o3').textContent = o3;
+
+                // Update Ring & Status
+                updateAQIStatus(aqi);
+
+                // Update Chart (Next 24 Hours)
+                const chartLabels = data.hourly.time.slice(currentHour, currentHour + 24).map(t => t.slice(11, 16));
+                const chartData = data.hourly.us_aqi.slice(currentHour, currentHour + 24);
+
+                aqiChart.data.labels = chartLabels;
+                aqiChart.data.datasets[0].data = chartData;
+                aqiChart.update();
+
+                // Update Health Tips
+                updateHealthTips(aqi);
+            }
+        }
+
+        function updateAQIStatus(aqi) {
+            let color = '#00f2ea';
+            let status = 'Good';
+
+            if (aqi > 50) { color = '#ffd700'; status = 'Moderate'; }
+            if (aqi > 100) { color = '#ff9f1c'; status = 'Sensitive'; }
+            if (aqi > 150) { color = '#ff0050'; status = 'Unhealthy'; }
+            if (aqi > 200) { color = '#9d00ff'; status = 'Very Unhealthy'; }
+            if (aqi > 300) { color = '#720000'; status = 'Hazardous'; }
+
+            document.getElementById('aqi-status').textContent = status;
+            document.getElementById('aqi-status').style.color = color;
+
+            const ring = document.getElementById('aqi-ring');
+            ring.style.setProperty('--color', color);
+
+            // Calculate degrees for conic gradient (max 360deg = 500 AQI)
+            const deg = Math.min((aqi / 500) * 360, 360);
+            ring.style.setProperty('--deg', `${deg}deg`);
+        }
+
+        function updateHealthTips(aqi) {
+            const container = document.getElementById('health-tips-content');
+            let tips = [];
+
+            if (aqi <= 50) {
+                tips = [
+                    { icon: 'fa-smile', text: "Air quality is great! Enjoy outdoor activities." },
+                    { icon: 'fa-window-maximize', text: "Open windows to ventilate your home." }
+                ];
+            } else if (aqi <= 100) {
+                tips = [
+                    { icon: 'fa-meh', text: "Sensitive individuals should limit prolonged outdoor exertion." },
+                    { icon: 'fa-mask', text: "Carry a mask if you have respiratory issues." }
+                ];
+            } else if (aqi <= 150) {
+                tips = [
+                    { icon: 'fa-head-side-mask', text: "Wear a mask outdoors. Reduce heavy exertion." },
+                    { icon: 'fa-door-closed', text: "Close windows to keep pollutants out." }
+                ];
+            } else {
+                tips = [
+                    { icon: 'fa-skull-crossbones', text: "Avoid all outdoor activities. Health risk is high." },
+                    { icon: 'fa-fan', text: "Use an air purifier indoors immediately." }
+                ];
+            }
+
+            container.innerHTML = tips.map(tip => `
+                <div class="tip-item">
+                    <i class="fas ${tip.icon}"></i>
+                    <span>${tip.text}</span>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+
+</html>
